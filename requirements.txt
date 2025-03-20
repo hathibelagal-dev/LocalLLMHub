@@ -1,0 +1,6 @@
+transformers
+torch
+uvicorn
+asgiref
+fastapi
+jinja2
