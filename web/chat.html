@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local LLM Hub - Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        .chat-header {
+            background-color: #343541;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header select {
+            padding: 5px;
+            border-radius: 5px;
+            background-color: #40414f;
+            color: white;
+            border: none;
+            font-size: 14px;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+        }
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .user-message {
+            justify-content: flex-end;
+        }
+        .message-content {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 10px;
+        }
+        .user-message .message-content {
+            background-color: #40414f;
+            color: white;
+        }
+        .ai-message .message-content {
+            background-color: #ffffff;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            background-color: white;
+        }
+        .chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: none;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            padding: 10px 20px;
+            background-color: #343541;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background-color: #40414f;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <span>Chat Session</span>
+            <select id="llmSelector" onchange="changeLLM()">
+                <option value="meta-llama/llama-3.2-1b-instruct">Llama-3.2 1B Instruct</option>
+                <option value="google/gemma-3-1b-it">Gemma 3 1B Instruct</option>
+                <option value="qwen/qwen2.5-0.5b-instruct">Qwen 2.5 0.5B Instruct</option>
+            </select>
+        </div>
+        <div class="chat-messages" id="messages">
+            <div class="message ai-message">
+                <div class="message-content">
+                    Hello! How can I assist you today?
+                </div>
+            </div>
+        </div>
+        <div class="chat-input">
+            <textarea id="input" rows="2" placeholder="Type your message..."></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const availableLLMs = ["Grok", "Llama-2-7B", "Mistral-7B"];
+        let selectedLLM = "Grok";
+
+        function changeLLM() {
+            const selector = document.getElementById('llmSelector');
+            selectedLLM = selector.value;
+            const messages = document.getElementById('messages');
+            messages.innerHTML = `<div class="message ai-message"><div class="message-content">Switched to ${selectedLLM}. How can I assist you?</div></div>`;
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('input');
+            const messages = document.getElementById('messages');
+            const messageText = input.value.trim();
+
+            if (messageText === '') return;
+
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user-message';
+            userMessage.innerHTML = `<div class="message-content">${messageText}</div>`;
+            messages.appendChild(userMessage);
+
+            setTimeout(() => {
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                aiMessage.innerHTML = `<div class="message-content">Response from ${selectedLLM}: This is a sample reply!</div>`;
+                messages.appendChild(aiMessage);
+                messages.scrollTop = messages.scrollHeight;
+            }, 500);
+
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        document.getElementById('input').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

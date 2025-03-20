@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local LLM Hub - Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .llm-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        .llm-header {
+            background-color: #343541;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .llm-list {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+        }
+        .llm-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .llm-item button {
+            padding: 8px 15px;
+            background-color: #343541;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .llm-item button:hover {
+            background-color: #40414f;
+        }
+        .download-section {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            background-color: white;
+            display: flex;
+            align-items: center;
+        }
+        .download-section input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        .download-section button {
+            padding: 10px 20px;
+            background-color: #343541;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .download-section button:hover {
+            background-color: #40414f;
+        }
+    </style>
+</head>
+<body>
+    <div class="llm-container">
+        <div class="llm-header">
+            Local LLM Manager
+        </div>
+        <div class="llm-list" id="llmList">
+        </div>
+        <div class="download-section">
+            <input type="text" id="downloadUrl" placeholder="Enter LLM download URL">
+            <button onclick="downloadLLM()">Download</button>
+        </div>
+    </div>
+
+    <script>
+        let localLLMs = [
+            { name: "Llama-2-7B", size: "4.5GB" },
+            { name: "Mistral-7B", size: "4.1GB" }
+        ];
+
+        window.onload = function() {
+            updateLLMList();
+        };
+
+        function updateLLMList() {
+            const llmList = document.getElementById('llmList');
+            llmList.innerHTML = '';
+            localLLMs.forEach(llm => {
+                const div = document.createElement('div');
+                div.className = 'llm-item';
+                div.innerHTML = `${llm.name} (${llm.size}) <button onclick="deleteLLM('${llm.name}')">Delete</button>`;
+                llmList.appendChild(div);
+            });
+        }
+
+        function deleteLLM(name) {
+            if (confirm(`Are you sure you want to delete ${name}?`)) {
+                localLLMs = localLLMs.filter(llm => llm.name !== name);
+                updateLLMList();
+                alert(`Deleted ${name}. (In a real app, this would remove the model from storage.)`);
+            }
+        }
+
+        function downloadLLM() {
+            const url = document.getElementById('downloadUrl').value.trim();
+            if (url === '') {
+                alert('Please enter a valid URL.');
+                return;
+            }
+            const newLLM = { name: `New-LLM-${localLLMs.length + 1}`, size: "Unknown" };
+            localLLMs.push(newLLM);
+            updateLLMList();
+            document.getElementById('downloadUrl').value = '';
+            alert(`Simulated download of ${newLLM.name} from ${url}.`);
+        }
+    </script>
+</body>
+</html>
