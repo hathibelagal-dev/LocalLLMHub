@@ -207,6 +207,9 @@
 
         function formatResponse(text) {
             let formatted = text;
+            if(formatted.startsWith("assistant:")) {
+                formatted = formatted.slice("assistant:".length).trim();
+            }
 
             const lines = formatted.split('\n');
             formatted = lines.map(line => {

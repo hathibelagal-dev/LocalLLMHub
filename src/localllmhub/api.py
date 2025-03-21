@@ -136,6 +136,8 @@ async def stream_chat(model_name: str, message: str):
                 device_map="auto"
             )
             loaded_tokenizers[model_name] = AutoTokenizer.from_pretrained(model_name)
+            if loaded_tokenizers[model_name].pad_token is None:
+                loaded_tokenizers[model_name].pad_token = loaded_tokenizers[model_name].eos_token
         except Exception as e:
             logger.error(f"Error loading model {model_name}: {str(e)}")
             yield f"data: {{\"error\": \"Failed to load model: {str(e)}\"}}\n\n"
@@ -145,22 +147,23 @@ async def stream_chat(model_name: str, message: str):
     tokenizer = loaded_tokenizers[model_name]
 
     messages = [
-        {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
-        {"role": "user", "content": [{"type": "text", "text": message}]}
+        {"role": "system", "content": "You are a helpful assistant. Provide concise, direct answers"},
+        {"role": "user", "content": message}
     ]
 
     prompt = ""
     for msg in messages:
         role = msg["role"]
-        content = msg["content"][0]["text"]
+        content = msg["content"]
         prompt += f"{role}: {content}\n"
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(model.device)
     streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
     generation_kwargs = {
         "input_ids": inputs["input_ids"],
-        "max_new_tokens": 250,
+        "attention_mask": inputs["attention_mask"],
+        "max_new_tokens": 100,
         "do_sample": True,
         "temperature": 0.8,
         "repetition_penalty": 1.2,
