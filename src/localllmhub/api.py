@@ -2,9 +2,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
+from importlib import resources
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+with resources.path("localllmhub", "templates") as template_dir:
+    print(template_dir)
+    templates = Jinja2Templates(directory=str(template_dir))
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
