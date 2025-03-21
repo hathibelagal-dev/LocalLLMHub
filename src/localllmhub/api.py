@@ -149,7 +149,6 @@ async def stream_chat(model_name: str, message: str):
         {"role": "user", "content": [{"type": "text", "text": message}]}
     ]
 
-    # Convert messages to a single string prompt
     prompt = ""
     for msg in messages:
         role = msg["role"]
@@ -161,9 +160,10 @@ async def stream_chat(model_name: str, message: str):
 
     generation_kwargs = {
         "input_ids": inputs["input_ids"],
-        "max_new_tokens": 500,
+        "max_new_tokens": 250,
         "do_sample": True,
-        "temperature": 0.7,
+        "temperature": 0.8,
+        "repetition_penalty": 1.2,
         "streamer": streamer
     }
 

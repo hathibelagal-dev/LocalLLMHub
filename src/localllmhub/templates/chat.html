@@ -84,6 +84,17 @@
         .message-content code {
             font-family: monospace;
         }
+        .message-content h3 {
+            margin: 0.5rem 0;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .message-content strong {
+            font-weight: bold;
+        }
+        .message-content em {
+            font-style: italic;
+        }
         .chat-input {
             padding: 1rem;
             border-top: 1px solid #eee;
@@ -114,12 +125,6 @@
         }
         .chat-input button:hover {
             background-color: #40414f;
-        }
-        .message-content strong {
-            font-weight: bold;
-        }
-        .message-content em {
-            font-style: italic;
         }
         @media (max-width: 600px) {
             .chat-container {
@@ -203,24 +208,24 @@
         function formatResponse(text) {
             let formatted = text;
 
-            // Handle code blocks (```lang\ncode\n```)
+            const lines = formatted.split('\n');
+            formatted = lines.map(line => {
+                if (line.startsWith('### ')) {
+                    const headingText = line.slice(4).trim();
+                    return `<h3>${headingText}</h3>`;
+                }
+                return line;
+            }).join('\n');
+
             const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
             formatted = formatted.replace(codeBlockRegex, (match, lang, code) => {
                 return `<pre><code class="${lang || ''}">${code.trim()}</code></pre>`;
             });
-
-            // Handle inline code (`code`)
             formatted = formatted.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-
-            // Handle bold (**text** or __text__)
             formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             formatted = formatted.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-
-            // Handle italic (*text* or _text_)
             formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
             formatted = formatted.replace(/_([^_]+)_/g, '<em>$1</em>');
-
-            // Handle newlines
             formatted = formatted.replace(/\n/g, '<br>');
 
             return formatted;
@@ -282,7 +287,7 @@
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
                     const lines = buffer.split('\n\n');
-                    buffer = lines.pop();  // Keep incomplete event in buffer
+                    buffer = lines.pop();
 
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
@@ -305,7 +310,6 @@
                     }
                 }
 
-                // Process any remaining buffer
                 if (buffer && buffer.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(buffer.slice(6));
