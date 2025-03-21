@@ -134,7 +134,7 @@
         </div>
         <div class="button-section">
             <button onclick="cancelDownload()">Cancel</button>
-            <button onclick="returnToMain()">Return to Manager</button>
+            <button onclick="returnToMain()">Return to Home</button>
         </div>
     </div>
 
@@ -144,22 +144,24 @@
         const progressBar = document.getElementById('progressBar');
         const consoleLog = document.getElementById('consoleLog');
         let eventSource;
-    
+
         document.getElementById('modelName').textContent = `Downloading: ${modelName || 'Unknown'}`;
-    
+
         function logMessage(message) {
             const logEntry = document.createElement('div');
             logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             consoleLog.appendChild(logEntry);
             consoleLog.scrollTop = consoleLog.scrollHeight;
         }
-    
+
         function startDownload() {
             eventSource = new EventSource(`/api/install-llm?name=${encodeURIComponent(modelName)}`);
             
             eventSource.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                if (data.status === 'downloading') {
+                if (data.status === 'initializing') {
+                    logMessage(data.message);
+                } else if (data.status === 'downloading') {
                     progressBar.style.width = `${data.progress}%`;
                     progressBar.textContent = `${Math.round(data.progress)}%`;
                     logMessage(`Downloading ${data.file}: ${Math.round(data.progress)}%`);
@@ -174,14 +176,14 @@
                     eventSource.close();
                 }
             };
-    
+
             eventSource.onerror = function() {
                 logMessage('Connection error occurred');
                 progressBar.style.backgroundColor = '#ff4444';
                 eventSource.close();
             };
         }
-    
+
         function cancelDownload() {
             if (eventSource) {
                 eventSource.close();
@@ -189,12 +191,12 @@
                 progressBar.style.backgroundColor = '#ff4444';
             }
         }
-    
+
         function returnToMain() {
             if (eventSource) eventSource.close();
             window.location.href = '/';
         }
-    
+
         window.onload = function() {
             logMessage('Starting download...');
             logMessage('Connecting to server...');

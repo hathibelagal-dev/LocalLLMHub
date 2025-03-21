@@ -75,6 +75,15 @@
             color: #333;
             border: 1px solid #ddd;
         }
+        .message-content pre {
+            background-color: #f0f0f0;
+            padding: 0.5rem;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .message-content code {
+            font-family: monospace;
+        }
         .chat-input {
             padding: 1rem;
             border-top: 1px solid #eee;
@@ -160,8 +169,8 @@
                     if (data.llms && data.llms.length > 0) {
                         data.llms.forEach(llm => {
                             const option = document.createElement('option');
-                            option.value = lmm.name;
-                            option.text = `${lmm.name} (${lmm.size_mb} MB)`;
+                            option.value = llm.name;
+                            option.text = `${llm.name} (${llm.size_mb} MB)`;
                             selector.appendChild(option);
                         });
                         selectedLLM = selector.value;
@@ -184,28 +193,75 @@
             messages.scrollTop = messages.scrollHeight;
         }
 
-        function sendMessage() {
+        function formatResponse(text) {
+            // Handle code blocks
+            const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+            let formatted = text.replace(codeBlockRegex, (match, lang, code) => {
+                return `<pre><code class="${lang || ''}">${code.trim()}</code></pre>`;
+            });
+
+            // Replace remaining newlines with <br> tags
+            formatted = formatted.replace(/\n/g, '<br>');
+
+            return formatted;
+        }
+
+        async function sendMessage() {
             const input = document.getElementById('input');
             const messages = document.getElementById('messages');
             const messageText = input.value.trim();
 
-            if (messageText === '') return;
+            if (messageText === '' || !selectedLLM) {
+                if (!selectedLLM) {
+                    alert('Please select an LLM first');
+                }
+                return;
+            }
 
             const userMessage = document.createElement('div');
             userMessage.className = 'message user-message';
             userMessage.innerHTML = `<div class="message-content">${messageText}</div>`;
             messages.appendChild(userMessage);
-
-            setTimeout(() => {
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message ai-message';
-                aiMessage.innerHTML = `<div class="message-content">Response from ${selectedLLM}: This is a sample reply!</div>`;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
-            }, 500);
+            messages.scrollTop = messages.scrollHeight;
 
             input.value = '';
-            messages.scrollTop = messages.scrollHeight;
+            input.disabled = true;
+            document.querySelector('.chat-input button').disabled = true;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: selectedLLM,
+                        message: messageText
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const formattedResponse = formatResponse(data.response);
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                aiMessage.innerHTML = `<div class="message-content">${formattedResponse}</div>`;
+                messages.appendChild(aiMessage);
+                messages.scrollTop = messages.scrollHeight;
+            } catch (error) {
+                console.error('Error:', error);
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                aiMessage.innerHTML = `<div class="message-content">Error: ${error.message}</div>`;
+                messages.appendChild(aiMessage);
+                messages.scrollTop = messages.scrollHeight;
+            } finally {
+                input.disabled = false;
+                document.querySelector('.chat-input button').disabled = false;
+            }
         }
 
         document.getElementById('input').addEventListener('keydown', (event) => {

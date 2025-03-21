@@ -54,6 +54,32 @@
         .nav-links a:hover {
             background-color: #40414f;
         }
+        .token-container {
+            padding: 1rem;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .token-container input {
+            padding: 0.5rem;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .token-container button {
+            padding: 0.5rem 1rem;
+            background-color: #343541;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .token-container button:hover {
+            background-color: #40414f;
+        }
         @media (max-width: 600px) {
             .nav-container {
                 width: 95%;
@@ -74,6 +100,31 @@
             <a href="/chat">Chat with an LLM</a>
             <a href="/llm-manager">Manage Local LLMs</a>
         </div>
+        <div class="token-container">
+            <label for="hf_token">Hugging Face Token:</label>
+            <input type="password" id="hf_token" name="hf_token" value="{{ hf_token }}">
+            <button onclick="updateToken()">Update Token</button>
+        </div>
     </div>
+
+    <script>
+        async function updateToken() {
+            const token = document.getElementById('hf_token').value;
+            try {
+                const response = await fetch('/api/set-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ hf_token: token })
+                });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                console.error('Error updating token:', error);
+                alert('Error updating token');
+            }
+        }
+    </script>
 </body>
 </html>
