@@ -3,6 +3,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
 from importlib import resources
+from huggingface_hub import snapshot_download, list_repo_files, hf_hub_download, get_hf_file_metadata, hf_hub_url
+from starlette.responses import StreamingResponse
+from fastapi import HTTPException
+import logging
+import asyncio
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 with resources.path("localllmhub", "templates") as template_dir:
@@ -24,9 +32,45 @@ async def llm_manager(request: Request):
 async def downloader(request: Request):
     return templates.TemplateResponse("downloader.html", {"request": request})
 
+async def download_progress(repo_id: str):
+    """Generator function with detailed progress updates."""
+    try:
+        files = list_repo_files(repo_id=repo_id)
+        total_size = 0
+        downloaded_size = 0
+        
+        for file in files:
+            metadata = get_hf_file_metadata(hf_hub_url(repo_id, file))
+            total_size += metadata.size
+
+        for file in files:
+            def progress_callback(count, block_size, total_size_file):
+                nonlocal downloaded_size
+                downloaded_size += block_size
+                percentage = (downloaded_size / total_size) * 100
+                yield f"data: {{\"status\": \"downloading\", \"progress\": {percentage:.1f}, \"file\": \"{file}\"}}\n\n"
+
+            hf_hub_download(
+                repo_id=repo_id,
+                filename=file,
+                tqdm_class=None,
+            )
+
+        yield "data: {\"status\": \"completed\", \"progress\": 100.0}\n\n"
+        
+    except Exception as e:
+        logger.error(f"Error downloading model {repo_id}: {str(e)}")
+        yield f"data: {{\"status\": \"error\", \"message\": \"{str(e)}\"}}\n\n"
+
 @app.get("/api/install-llm")
 async def install_llm(name: str):
-    pass
+    if not name or "/" not in name:
+        raise HTTPException(status_code=400, detail="Invalid model name.")
+    logger.info(f"Starting installation of model: {name}")
+    return StreamingResponse(
+        download_progress(name),
+        media_type="text/event-stream"
+    )
 
 @app.get("/api/list-llms")
 async def list_llms():

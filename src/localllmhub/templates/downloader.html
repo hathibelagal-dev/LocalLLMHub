@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Progress - Local LLM Manager</title>
+    <title>Local LLM Hub - Download Manager</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -140,55 +140,65 @@
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const modelName = urlParams.get('model');
-        let progress = 0;
-        let isCancelled = false;
+        const modelName = urlParams.get('url');
         const progressBar = document.getElementById('progressBar');
         const consoleLog = document.getElementById('consoleLog');
-
+        let eventSource;
+    
         document.getElementById('modelName').textContent = `Downloading: ${modelName || 'Unknown'}`;
-
+    
         function logMessage(message) {
             const logEntry = document.createElement('div');
             logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             consoleLog.appendChild(logEntry);
             consoleLog.scrollTop = consoleLog.scrollHeight;
         }
-
-        function updateProgress() {
-            if (isCancelled) return;
-
-            progress += Math.random() * 10;
-            if (progress > 100) progress = 100;
+    
+        function startDownload() {
+            eventSource = new EventSource(`/api/install-llm?name=${encodeURIComponent(modelName)}`);
             
-            progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `${Math.round(progress)}%`;
-            logMessage(`Download progress: ${Math.round(progress)}%`);
-
-            if (progress < 100) {
-                setTimeout(updateProgress, 1000);
-            } else {
-                logMessage('Download completed successfully');
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.status === 'downloading') {
+                    progressBar.style.width = `${data.progress}%`;
+                    progressBar.textContent = `${Math.round(data.progress)}%`;
+                    logMessage(`Downloading ${data.file}: ${Math.round(data.progress)}%`);
+                } else if (data.status === 'completed') {
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+                    logMessage('Download completed successfully');
+                    eventSource.close();
+                } else if (data.status === 'error') {
+                    progressBar.style.backgroundColor = '#ff4444';
+                    logMessage(`Error: ${data.message}`);
+                    eventSource.close();
+                }
+            };
+    
+            eventSource.onerror = function() {
+                logMessage('Connection error occurred');
+                progressBar.style.backgroundColor = '#ff4444';
+                eventSource.close();
+            };
+        }
+    
+        function cancelDownload() {
+            if (eventSource) {
+                eventSource.close();
+                logMessage('Download cancelled by user');
+                progressBar.style.backgroundColor = '#ff4444';
             }
         }
-
-        function cancelDownload() {
-            isCancelled = true;
-            logMessage('Download cancelled by user');
-            progressBar.style.backgroundColor = '#ff4444';
-        }
-
+    
         function returnToMain() {
-            window.location.href = 'index.html'; // Adjust to match your main page filename
+            if (eventSource) eventSource.close();
+            window.location.href = '/';
         }
-
+    
         window.onload = function() {
             logMessage('Starting download...');
             logMessage('Connecting to server...');
-            setTimeout(() => {
-                logMessage('Download initiated');
-                updateProgress();
-            }, 1000);
+            startDownload();
         };
     </script>
 </body>
