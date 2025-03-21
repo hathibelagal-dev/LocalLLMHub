@@ -73,13 +73,15 @@
             flex-wrap: wrap;
             gap: 0.5rem;
         }
-        .download-section input {
+        .download-section select {
             flex: 1;
             padding: 0.75rem;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: clamp(14px, 3vw, 16px);
             box-sizing: border-box;
+            background-color: #fff;
+            cursor: pointer;
         }
         .download-section button {
             padding: 0.75rem 1.5rem;
@@ -109,7 +111,7 @@
             .download-section {
                 padding: 0.75rem;
             }
-            .download-section input {
+            .download-section select {
                 width: 100%;
             }
             .download-section button {
@@ -126,12 +128,33 @@
         <div class="llm-list" id="llmList">
         </div>
         <div class="download-section">
-            <input type="text" id="downloadUrl" placeholder="Enter LLM download URL">
+            <select id="downloadUrl">
+                <option value="" disabled selected>Select an LLM to download</option>
+            </select>
             <button onclick="downloadLLM()">Download</button>
         </div>
     </div>
 
     <script>
+        const availableLLMs = [
+            { name: "meta-llama/Llama-3.2-1B-Instruct"},
+            { name: "meta-llama/Llama-3.2-3B-Instruct"},
+            { name: "microsoft/Phi-4-mini-instruct"},
+            { name: "google/gemma-3-1b-it"},
+            { name: "google/gemma-3-4b-it"},
+            { name: "Qwen/Qwen2.5-0.5B-Instruct"}
+        ];
+
+        function populateDropdown() {
+            const select = document.getElementById('downloadUrl');
+            availableLLMs.forEach(llm => {
+                const option = document.createElement('option');
+                option.value = llm.name;
+                option.textContent = llm.name;
+                select.appendChild(option);
+            });
+        }
+
         function updateLLMList() {
             fetch('/api/list-llms')
                 .then(response => response.json())
@@ -162,17 +185,18 @@
         }
 
         function downloadLLM() {
-            const url = document.getElementById('downloadUrl').value.trim();
+            const url = document.getElementById('downloadUrl').value;
             if (url === '') {
-                alert('Please enter a valid URL.');
+                alert('Please select an LLM to download.');
                 return;
             }
-            alert(`Download from ${url} not implemented in this demo. Requires backend support.`);
-            document.getElementById('downloadUrl').value = '';
-            updateLLMList();
+            window.location.href = "downloader?url=" + encodeURIComponent(url);
         }
 
-        window.onload = updateLLMList;
+        window.onload = function() {
+            populateDropdown();
+            updateLLMList();
+        };
     </script>
 </body>
 </html>

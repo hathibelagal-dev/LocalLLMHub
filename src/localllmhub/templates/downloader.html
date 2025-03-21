@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Progress - Local LLM Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .progress-container {
+            width: 90%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        .progress-header {
+            background-color: #343541;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-size: clamp(16px, 4vw, 18px);
+        }
+        .progress-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+        }
+        .model-info {
+            padding: 0.75rem;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            font-size: clamp(14px, 3vw, 16px);
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 30px;
+            background-color: #343541;
+            border-radius: 5px;
+            transition: width 0.3s ease-in-out;
+            text-align: center;
+            color: white;
+            line-height: 30px;
+            font-size: clamp(12px, 3vw, 14px);
+        }
+        .console-log {
+            flex: 1;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 0.75rem;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: clamp(12px, 3vw, 14px);
+            margin-bottom: 1rem;
+        }
+        .button-section {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .button-section button {
+            padding: 0.75rem 1.5rem;
+            background-color: #343541;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: clamp(14px, 3vw, 16px);
+            flex: 1;
+        }
+        .button-section button:hover {
+            background-color: #40414f;
+        }
+        @media (max-width: 600px) {
+            .progress-container {
+                width: 95%;
+                height: 90vh;
+            }
+            .progress-content {
+                padding: 0.75rem;
+            }
+            .model-info {
+                padding: 0.5rem;
+            }
+            .button-section {
+                padding: 0.75rem;
+            }
+            .button-section button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-container">
+        <div class="progress-header">
+            Download Progress
+        </div>
+        <div class="progress-content">
+            <div class="model-info" id="modelName"></div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+            <div class="console-log" id="consoleLog"></div>
+        </div>
+        <div class="button-section">
+            <button onclick="cancelDownload()">Cancel</button>
+            <button onclick="returnToMain()">Return to Manager</button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const modelName = urlParams.get('model');
+        let progress = 0;
+        let isCancelled = false;
+        const progressBar = document.getElementById('progressBar');
+        const consoleLog = document.getElementById('consoleLog');
+
+        document.getElementById('modelName').textContent = `Downloading: ${modelName || 'Unknown'}`;
+
+        function logMessage(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleLog.appendChild(logEntry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        function updateProgress() {
+            if (isCancelled) return;
+
+            progress += Math.random() * 10;
+            if (progress > 100) progress = 100;
+            
+            progressBar.style.width = `${progress}%`;
+            progressBar.textContent = `${Math.round(progress)}%`;
+            logMessage(`Download progress: ${Math.round(progress)}%`);
+
+            if (progress < 100) {
+                setTimeout(updateProgress, 1000);
+            } else {
+                logMessage('Download completed successfully');
+            }
+        }
+
+        function cancelDownload() {
+            isCancelled = true;
+            logMessage('Download cancelled by user');
+            progressBar.style.backgroundColor = '#ff4444';
+        }
+
+        function returnToMain() {
+            window.location.href = 'index.html'; // Adjust to match your main page filename
+        }
+
+        window.onload = function() {
+            logMessage('Starting download...');
+            logMessage('Connecting to server...');
+            setTimeout(() => {
+                logMessage('Download initiated');
+                updateProgress();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

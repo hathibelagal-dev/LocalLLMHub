@@ -6,7 +6,6 @@ from importlib import resources
 
 app = FastAPI()
 with resources.path("localllmhub", "templates") as template_dir:
-    print(template_dir)
     templates = Jinja2Templates(directory=str(template_dir))
 
 @app.get("/", response_class=HTMLResponse)
@@ -21,6 +20,14 @@ async def chat(request: Request):
 async def llm_manager(request: Request):
     return templates.TemplateResponse("llm-manager.html", {"request": request})
 
+@app.get("/downloader", response_class=HTMLResponse)
+async def downloader(request: Request):
+    return templates.TemplateResponse("downloader.html", {"request": request})
+
+@app.get("/api/install-llm")
+async def install_llm(name: str):
+    pass
+
 @app.get("/api/list-llms")
 async def list_llms():
     cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
@@ -33,15 +40,17 @@ async def list_llms():
     llm_info = []
     
     for model in models:
-        model_path = os.path.join(cache_dir, model)
+        model_path = os.path.join(cache_dir, model)        
         total_size = 0
-        for dirpath, _, filenames in os.walk(model_path):
+        for dirpath, dirname, filenames in os.walk(model_path):
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
         
         size_mb = total_size / (1024 * 1024)
         model_name = model.replace("models--", "").replace("--", "/")
+        if model_name.startswith("."):
+            continue
         llm_info.append({
             "name": model_name,
             "size_mb": round(size_mb, 2)
