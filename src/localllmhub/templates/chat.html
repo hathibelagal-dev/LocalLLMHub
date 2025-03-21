@@ -115,6 +115,12 @@
         .chat-input button:hover {
             background-color: #40414f;
         }
+        .message-content strong {
+            font-weight: bold;
+        }
+        .message-content em {
+            font-style: italic;
+        }
         @media (max-width: 600px) {
             .chat-container {
                 width: 95%;
@@ -159,6 +165,7 @@
 
     <script>
         let selectedLLM = "";
+        let currentAIMessage = null;
 
         function populateLLMSelector() {
             fetch('/api/list-llms')
@@ -194,13 +201,26 @@
         }
 
         function formatResponse(text) {
-            // Handle code blocks
+            let formatted = text;
+
+            // Handle code blocks (```lang\ncode\n```)
             const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-            let formatted = text.replace(codeBlockRegex, (match, lang, code) => {
+            formatted = formatted.replace(codeBlockRegex, (match, lang, code) => {
                 return `<pre><code class="${lang || ''}">${code.trim()}</code></pre>`;
             });
 
-            // Replace remaining newlines with <br> tags
+            // Handle inline code (`code`)
+            formatted = formatted.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+            // Handle bold (**text** or __text__)
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+            // Handle italic (*text* or _text_)
+            formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            formatted = formatted.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+            // Handle newlines
             formatted = formatted.replace(/\n/g, '<br>');
 
             return formatted;
@@ -224,6 +244,12 @@
             messages.appendChild(userMessage);
             messages.scrollTop = messages.scrollHeight;
 
+            currentAIMessage = document.createElement('div');
+            currentAIMessage.className = 'message ai-message';
+            currentAIMessage.innerHTML = '<div class="message-content"></div>';
+            messages.appendChild(currentAIMessage);
+            messages.scrollTop = messages.scrollHeight;
+
             input.value = '';
             input.disabled = true;
             document.querySelector('.chat-input button').disabled = true;
@@ -244,23 +270,65 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                const formattedResponse = formatResponse(data.response);
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message ai-message';
-                aiMessage.innerHTML = `<div class="message-content">${formattedResponse}</div>`;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let responseText = '';
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop();  // Keep incomplete event in buffer
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.error) {
+                                    currentAIMessage.querySelector('.message-content').innerHTML = `Error: ${data.error}`;
+                                    break;
+                                } else if (data.token) {
+                                    responseText += data.token;
+                                    currentAIMessage.querySelector('.message-content').innerHTML = formatResponse(responseText);
+                                    messages.scrollTop = messages.scrollHeight;
+                                } else if (data.status === 'completed') {
+                                    break;
+                                }
+                            } catch (innerError) {
+                                console.error('Error parsing JSON:', innerError, 'Line:', line);
+                            }
+                        }
+                    }
+                }
+
+                // Process any remaining buffer
+                if (buffer && buffer.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(buffer.slice(6));
+                        if (data.error) {
+                            currentAIMessage.querySelector('.message-content').innerHTML = `Error: ${data.error}`;
+                        } else if (data.token) {
+                            responseText += data.token;
+                            currentAIMessage.querySelector('.message-content').innerHTML = formatResponse(responseText);
+                            messages.scrollTop = messages.scrollHeight;
+                        }
+                    } catch (innerError) {
+                        console.error('Error parsing remaining buffer:', innerError, 'Buffer:', buffer);
+                    }
+                }
+
             } catch (error) {
                 console.error('Error:', error);
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message ai-message';
-                aiMessage.innerHTML = `<div class="message-content">Error: ${error.message}</div>`;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
+                currentAIMessage.querySelector('.message-content').innerHTML = `Error: ${error.message}`;
             } finally {
                 input.disabled = false;
                 document.querySelector('.chat-input button').disabled = false;
+                currentAIMessage = null;
+                messages.scrollTop = messages.scrollHeight;
             }
         }
 

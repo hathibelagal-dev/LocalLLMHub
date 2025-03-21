@@ -8,8 +8,10 @@ from starlette.responses import StreamingResponse
 from fastapi import HTTPException
 import logging
 import asyncio
-from transformers import pipeline
+from transformers import TextIteratorStreamer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,7 +20,8 @@ app = FastAPI()
 with resources.path("localllmhub", "templates") as template_dir:
     templates = Jinja2Templates(directory=str(template_dir))
 
-loaded_pipelines = {}
+loaded_models = {}
+loaded_tokenizers = {}
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -124,6 +127,57 @@ async def list_llms():
     
     return {"llms": llm_info}
 
+async def stream_chat(model_name: str, message: str):
+    if model_name not in loaded_models:
+        try:
+            loaded_models[model_name] = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto"
+            )
+            loaded_tokenizers[model_name] = AutoTokenizer.from_pretrained(model_name)
+        except Exception as e:
+            logger.error(f"Error loading model {model_name}: {str(e)}")
+            yield f"data: {{\"error\": \"Failed to load model: {str(e)}\"}}\n\n"
+            return
+
+    model = loaded_models[model_name]
+    tokenizer = loaded_tokenizers[model_name]
+
+    messages = [
+        {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
+        {"role": "user", "content": [{"type": "text", "text": message}]}
+    ]
+
+    # Convert messages to a single string prompt
+    prompt = ""
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"][0]["text"]
+        prompt += f"{role}: {content}\n"
+
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+
+    generation_kwargs = {
+        "input_ids": inputs["input_ids"],
+        "max_new_tokens": 500,
+        "do_sample": True,
+        "temperature": 0.7,
+        "streamer": streamer
+    }
+
+    import threading
+    thread = threading.Thread(target=model.generate, kwargs=generation_kwargs)
+    thread.start()
+
+    for new_text in streamer:
+        escaped_text = json.dumps(new_text)[1:-1]
+        yield f"data: {{\"token\": \"{escaped_text}\"}}\n\n"
+        await asyncio.sleep(0.05)
+
+    yield "data: {\"status\": \"completed\"}\n\n"
+
 @app.post("/api/chat")
 async def chat_with_llm(request: Request):
     data = await request.json()
@@ -133,26 +187,7 @@ async def chat_with_llm(request: Request):
     if not model_name or not message:
         raise HTTPException(status_code=400, detail="Model name and message are required")
 
-    if model_name not in loaded_pipelines:
-        try:
-            loaded_pipelines[model_name] = pipeline(
-                "text-generation",
-                model=model_name,
-                torch_dtype=torch.bfloat16,
-                device=0 if torch.cuda.is_available() else -1
-            )
-        except Exception as e:
-            logger.error(f"Error loading model {model_name}: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
-
-    pipe = loaded_pipelines[model_name]
-
-    messages = [
-        {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
-        {"role": "user", "content": [{"type": "text", "text": message}]}
-    ]
-
-    output = pipe(messages, max_new_tokens=100)
-    response = output[0]["generated_text"][-1]["content"]
-
-    return {"response": response}
+    return StreamingResponse(
+        stream_chat(model_name, message),
+        media_type="text/event-stream"
+    )
