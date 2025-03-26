@@ -300,6 +300,9 @@
                                     currentAIMessage.querySelector('.message-content').innerHTML = `Error: ${data.error}`;
                                     break;
                                 } else if (data.token) {
+                                    if (data.token.toLowerCase() == "user:") {
+                                        return;
+                                    }
                                     responseText += data.token;
                                     currentAIMessage.querySelector('.message-content').innerHTML = formatResponse(responseText);
                                     messages.scrollTop = messages.scrollHeight;

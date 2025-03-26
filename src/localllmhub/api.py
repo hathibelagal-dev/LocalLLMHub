@@ -163,11 +163,13 @@ async def stream_chat(model_name: str, message: str):
     generation_kwargs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
-        "max_new_tokens": 100,
+        "max_new_tokens": 200,
         "do_sample": True,
         "temperature": 0.8,
         "repetition_penalty": 1.2,
-        "streamer": streamer
+        "streamer": streamer,
+        "stop_strings": ["user:", "User:"],
+        "tokenizer": loaded_tokenizers[model_name]
     }
 
     import threading
